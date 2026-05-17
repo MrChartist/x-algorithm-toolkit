@@ -24,7 +24,7 @@ import {
   generateOptimalSchedule,
   calculateDiversityMultiplier,
 } from "./engine.js";
-import { ENGAGEMENT_WEIGHTS, FILTER_RULES } from "./constants.js";
+import { ENGAGEMENT_WEIGHTS, FILTER_RULES, NICHE_TOPICS, THREAD_TEMPLATES } from "./constants.js";
 
 // ── Server Setup ──────────────────────────────
 
@@ -444,6 +444,150 @@ server.tool(
   }
 );
 
+// ══════════════════════════════════════════════
+// TOOL 9: classify_niche
+// ══════════════════════════════════════════════
+
+server.tool(
+  "classify_niche",
+  "Classify a tweet into a content niche and return niche-specific optimization advice, including best signals to target and recommended formats.",
+  {
+    text: z.string().describe("The tweet text to classify"),
+  },
+  async ({ text }) => {
+    const lower = text.toLowerCase();
+    const scores: { niche: string; label: string; matches: string[]; bestSignal: string; bestFormat: string }[] = [];
+
+    for (const [key, info] of Object.entries(NICHE_TOPICS)) {
+      const matches = info.keywords.filter(kw => lower.includes(kw));
+      if (matches.length > 0) {
+        scores.push({ niche: key, label: info.label, matches, bestSignal: info.bestSignal, bestFormat: info.bestFormat });
+      }
+    }
+
+    scores.sort((a, b) => b.matches.length - a.matches.length);
+    const primary = scores[0] || null;
+
+    const output = {
+      primary_niche: primary ? primary.label : 'General',
+      confidence: primary ? (primary.matches.length >= 3 ? 'HIGH' : primary.matches.length >= 2 ? 'MEDIUM' : 'LOW') : 'NONE',
+      matched_keywords: primary?.matches || [],
+      optimization: primary ? {
+        best_signal: primary.bestSignal,
+        best_format: primary.bestFormat,
+        tip: `For ${primary.label} content, optimize for ${primary.bestSignal}. Use ${primary.bestFormat} formats for maximum reach.`,
+      } : {
+        tip: 'No clear niche detected. Add topic-specific keywords to help topic_ids_filter classify your content correctly.',
+      },
+      all_matches: scores,
+      available_niches: Object.entries(NICHE_TOPICS).map(([k, v]) => ({ id: k, label: v.label })),
+    };
+
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(output, null, 2) }],
+    };
+  }
+);
+
+// ══════════════════════════════════════════════
+// TOOL 10: get_thread_strategy
+// ══════════════════════════════════════════════
+
+server.tool(
+  "get_thread_strategy",
+  "Get proven thread templates and strategies optimized for the X algorithm. Returns hook formulas, structures, and best practices for thread writing.",
+  {
+    topic: z.string().optional().describe("Optional topic to tailor the thread strategy for"),
+    thread_length: z.number().min(3).max(20).optional().describe("Number of tweets in the thread (default 7)"),
+  },
+  async ({ topic, thread_length }) => {
+    const length = thread_length ?? 7;
+
+    const output = {
+      recommended_length: length <= 5 ? 'Short (may feel thin — add more value)' : length <= 10 ? 'Optimal (5-10 is the sweet spot)' : 'Long (risk losing readers after tweet 10)',
+      templates: THREAD_TEMPLATES.map(t => ({
+        type: t.type,
+        hook_formula: t.hook,
+        structure: t.structure,
+        ...(topic ? { example_hook: t.hook.replace('[topic]', topic).replace('[specific experience]', topic) } : {}),
+      })),
+      rules: [
+        'Hook tweet is everything — if it doesn\'t stop the scroll, the thread dies',
+        'Each tweet must stand alone — users might see any tweet in isolation',
+        'Number your tweets (1/N, 2/N) to create completion desire',
+        'Use images in key tweets — drives photo_expand on multiple tweets',
+        'End with a CTA tweet: "If this helped, repost tweet 1 and follow for more"',
+        `Optimal length: ${length} tweets`,
+        'Post all tweets at once as a thread (not individual timed posts)',
+      ],
+      algorithm_benefits: {
+        dwell_time: '2× multiplied across multiple tweets in the thread',
+        reply_potential: '27× — ask questions in tweet 2-3 to drive mid-thread replies',
+        bookmark_potential: '10× — actionable threads are the most bookmarked content type',
+        follow_potential: '4× — threads showcase expertise and drive follows',
+      },
+    };
+
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(output, null, 2) }],
+    };
+  }
+);
+
+// ══════════════════════════════════════════════
+// TOOL 11: full_audit
+// ══════════════════════════════════════════════
+
+server.tool(
+  "full_audit",
+  "Run a comprehensive audit on a tweet: scoring + filters + hook analysis + niche classification + spam check — all in one call. The ultimate pre-publish check.",
+  {
+    text: z.string().describe("The tweet text to audit"),
+    has_media: z.boolean().optional().describe("Whether the tweet has media attached"),
+  },
+  async ({ text, has_media }) => {
+    const scoreResult = scorePost(text, { hasMedia: has_media ?? false });
+    const hookAnalysis = analyzeHookStrength(text);
+    const mutedWords = detectMutedKeywords(text);
+    const links = detectLinks(text);
+    const hashtagCount = countHashtags(text);
+    const hasCTA = detectCTA(text);
+
+    // Niche classification
+    const lower = text.toLowerCase();
+    let primaryNiche = 'General';
+    let bestMatch = 0;
+    for (const [, info] of Object.entries(NICHE_TOPICS)) {
+      const count = info.keywords.filter(kw => lower.includes(kw)).length;
+      if (count > bestMatch) { bestMatch = count; primaryNiche = info.label; }
+    }
+
+    // Spam risk
+    const spamIssues: string[] = [];
+    if (mutedWords.length > 0) spamIssues.push(`Muted keywords: ${mutedWords.join(', ')}`);
+    if (links.length > 0) spamIssues.push(`External links in main post`);
+    if (hashtagCount >= 3) spamIssues.push(`${hashtagCount} hashtags (spam threshold)`);
+    if (/follow for follow|f4f|l4l|sub4sub/i.test(text)) spamIssues.push('Engagement bait');
+
+    const output = {
+      verdict: scoreResult.totalScore >= 75 ? '✅ READY TO POST' : scoreResult.totalScore >= 60 ? '⚠️ NEEDS IMPROVEMENT' : '🔴 DO NOT POST — REWRITE',
+      score: { total: scoreResult.totalScore, grade: scoreResult.grade, max: 100 },
+      hook: { score: hookAnalysis.score, max: 10, category: hookAnalysis.category, risk: hookAnalysis.score < 4 ? 'HIGH — not_dwelled penalty likely' : 'LOW' },
+      niche: primaryNiche,
+      filters: { passed: scoreResult.checks.filter(c => c.passed).length, total: scoreResult.checks.length },
+      spam_risk: spamIssues.length === 0 ? 'CLEAN' : `${spamIssues.length} ISSUE(S)`,
+      spam_issues: spamIssues,
+      penalties: scoreResult.penalties.map(p => p.label),
+      top_suggestions: scoreResult.suggestions.slice(0, 3).map(s => ({ action: s.label, impact: `+${s.points} pts`, fix: s.fix })),
+      stats: { chars: text.length, lines: text.split('\n').filter(l => l.trim()).length, hashtags: hashtagCount, links: links.length, has_cta: hasCTA, has_media: has_media ?? false },
+    };
+
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(output, null, 2) }],
+    };
+  }
+);
+
 // ── Resources ─────────────────────────────────
 
 server.resource(
@@ -458,12 +602,37 @@ server.resource(
   })
 );
 
+server.resource(
+  "filter-rules",
+  "x-algorithm://filters",
+  async (uri) => ({
+    contents: [{
+      uri: uri.href,
+      text: JSON.stringify(FILTER_RULES, null, 2),
+      mimeType: "application/json",
+    }],
+  })
+);
+
+server.resource(
+  "niche-topics",
+  "x-algorithm://niches",
+  async (uri) => ({
+    contents: [{
+      uri: uri.href,
+      text: JSON.stringify(NICHE_TOPICS, null, 2),
+      mimeType: "application/json",
+    }],
+  })
+);
+
 // ── Start ─────────────────────────────────────
 
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("X Algorithm MCP Server running on stdio");
+  console.error("X Algorithm MCP Server running on stdio — 11 tools, 3 resources");
 }
 
 main().catch(console.error);
+

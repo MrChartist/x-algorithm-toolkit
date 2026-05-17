@@ -98,3 +98,22 @@ export const FILTER_RULES = [
   { id: 'mention_spam', name: 'Mention Spam', severity: 'warning', explanation: '4+ mentions looks like spam tagging.' },
   { id: 'low_quality', name: 'Quality Threshold', severity: 'critical', explanation: 'Minimum content threshold for algorithmic distribution.' },
 ] as const;
+
+export const NICHE_TOPICS: Record<string, { label: string; keywords: string[]; bestSignal: string; bestFormat: string }> = {
+  tech:      { label: 'Tech',            keywords: ['code','programming','software','ai','startup','saas','devops','react','python','typescript'], bestSignal: 'Bookmark (10×)', bestFormat: 'Data Posts, Tutorials' },
+  finance:   { label: 'Finance',         keywords: ['stock','market','trading','investing','portfolio','nifty','options','mutual fund','crypto','defi'], bestSignal: 'Reply (27×)', bestFormat: 'Questions, Hot Takes' },
+  business:  { label: 'Business',        keywords: ['revenue','founder','ceo','growth','scale','profit','brand','strategy','leadership','management'], bestSignal: 'Follow (4×)', bestFormat: 'Threads, Stories' },
+  health:    { label: 'Health',          keywords: ['fitness','nutrition','workout','mental health','sleep','wellness','diet','exercise','meditation'], bestSignal: 'Bookmark (10×)', bestFormat: 'Tips, Checklists' },
+  creator:   { label: 'Creator Economy', keywords: ['content','audience','newsletter','youtube','creator','monetize','personal brand','followers','engagement'], bestSignal: 'Reply (27×)', bestFormat: 'Contrarian, Questions' },
+  education: { label: 'Education',       keywords: ['learn','course','study','skill','teach','tutorial','certification','exam','knowledge'], bestSignal: 'Bookmark (10×)', bestFormat: 'Threads, Frameworks' },
+  marketing: { label: 'Marketing',       keywords: ['seo','ads','copywriting','funnel','conversion','email','branding','campaign','landing page'], bestSignal: 'Reply (27×)', bestFormat: 'Data Posts, Case Studies' },
+};
+
+export const THREAD_TEMPLATES = [
+  { type: 'Transformation Story',  hook: 'I [did X] for [Y time]. Here\'s what happened:', structure: 'Before → Process → Challenges → Results → Lessons' },
+  { type: 'Numbered Insights',     hook: '[N] lessons I learned from [specific experience]:', structure: 'Hook → 1 lesson per tweet → Summary CTA' },
+  { type: 'Complete Guide',        hook: 'The complete guide to [topic] (that nobody talks about):', structure: 'Hook → Foundation → Steps → Advanced → Resources → CTA' },
+  { type: 'Myth Busting',          hook: '[N] myths about [topic] that are costing you:', structure: 'Hook → Myth 1 + Truth → Myth 2 + Truth → ... → Reality CTA' },
+  { type: 'Case Study',            hook: 'How [person/company] went from [A] to [B]:', structure: 'Hook → Context → Strategy → Execution → Results → Takeaways' },
+  { type: 'Behind the Scenes',     hook: 'I spent [X hours] analyzing [topic]. Here\'s the data:', structure: 'Hook → Methodology → Finding 1-3 → Surprise → Conclusion' },
+];
