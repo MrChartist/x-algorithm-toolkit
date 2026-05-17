@@ -1,20 +1,53 @@
 {
   "name": "x-algorithm-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for X (Twitter) Algorithm scoring, analysis, and tweet optimization. Uses the actual signal weights from X's open-source weighted_scorer.rs.",
+  "version": "2.0.0",
+  "description": "MCP server for X (Twitter) Algorithm scoring, analysis, and tweet optimization. 22 engagement signals extracted from X's actual open-source weighted_scorer.rs + ranking_scorer.rs. 11 tools, 3 resources.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "x-algorithm-mcp": "./dist/index.js"
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "npx tsx src/index.ts"
+    "dev": "npx tsx src/index.ts",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": ["mcp", "twitter", "x-algorithm", "tweet-scorer", "content-optimization"],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "twitter",
+    "x-algorithm",
+    "tweet-scorer",
+    "content-optimization",
+    "engagement",
+    "viral",
+    "social-media",
+    "ai-tools",
+    "claude",
+    "gemini",
+    "weighted-scorer",
+    "phoenix-model"
+  ],
   "author": "Mr_Chartist",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MrChartist/x-algorithm-toolkit.git",
+    "directory": "mcp"
+  },
+  "homepage": "https://github.com/MrChartist/x-algorithm-toolkit#readme",
+  "bugs": {
+    "url": "https://github.com/MrChartist/x-algorithm-toolkit/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "zod": "^3.24.4"
